@@ -200,3 +200,83 @@ export interface ApiError {
   message: string;
   details?: Record<string, unknown>;
 }
+
+// ─── Walk Log (Track C) ──────────────────────────────────────────────────────
+
+export interface WalkLogInput {
+  routeId?: string;
+  startedAt: string;
+  completedAt: string;
+  stepsActual: number;
+  distanceMetersActual: number;
+  durationMinutesActual: number;
+  buildingsVisited: string[];
+  caloriesEstimated?: number;
+  deviceId?: string;
+}
+
+export interface WalkLog extends WalkLogInput {
+  id: string;
+  healthKitSynced: boolean;
+  createdAt: string;
+}
+
+export interface WalkStats {
+  totalRoutes: number;
+  totalSteps: number;
+  totalDistanceMeters: number;
+  totalCalories: number;
+}
+
+// ─── Collection (Track D) ────────────────────────────────────────────────────
+
+export type CollectionTheme =
+  | "brutalist" | "modernist" | "waterfront" | "heritage"
+  | "contemporary" | "civic" | "unesco" | "transformation";
+
+export interface CollectionSummary {
+  id: string;
+  title: string;
+  description: string;
+  theme: CollectionTheme;
+  coverImageUrl?: string;
+  city?: string;
+  routeCount: number;
+}
+
+export interface Collection extends CollectionSummary {
+  routes: Route[];
+}
+
+// ─── Offline Store (Track A) ─────────────────────────────────────────────────
+
+export interface OfflineBundleMeta {
+  routeId: string;
+  title: string;
+  city: string;
+  estimatedSteps: number;
+  downloadedAt: string;
+  expiresAt: string;
+  sizeBytes: number;
+}
+
+export interface DownloadProgress {
+  routeId: string;
+  percent: number;
+  status: "idle" | "downloading" | "done" | "error";
+}
+
+// ─── Voice Guide (Track B) ───────────────────────────────────────────────────
+
+export interface VoiceGuideState {
+  isActive: boolean;
+  currentStopOrder: number;
+  isPlaying: boolean;
+  routeStops: RouteStop[];
+}
+
+export interface GeofenceEvent {
+  stopOrder: number;
+  buildingId: string;
+  buildingName: string;
+}

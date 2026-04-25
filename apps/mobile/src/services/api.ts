@@ -30,4 +30,9 @@ export const api = {
     get: (id: string) =>
       get<any>(`/buildings/${id}`),
   },
+
+  // Stubs — each parallel agent replaces one
+  offline: {} as any,
+  walks: {} as any,
+  collections: {} as any,
 };
