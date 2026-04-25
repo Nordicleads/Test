@@ -14,6 +14,8 @@ export interface GenerateRouteInput {
   eras?: BuildingEra[];
   stepGoal?: number;
   maxStops?: number;
+  stepFreeOnly?: boolean;
+  maxGradientPercent?: number;
 }
 
 interface CandidateBuilding {
@@ -27,6 +29,9 @@ interface CandidateBuilding {
   categories: BuildingCategory[];
   era: BuildingEra | null;
   audio_guide_url: string | null;
+  is_step_free: boolean;
+  max_gradient_percent: number | null;
+  surface_type: string | null;
   lat: number;
   lng: number;
   distance_from_origin: number;
@@ -119,11 +124,18 @@ export async function generateRoute(input: GenerateRouteInput) {
     eras = [],
     stepGoal = 10_000,
     maxStops = 10,
+    stepFreeOnly = false,
+    maxGradientPercent,
   } = input;
 
   const categoryCondition =
     categories.length > 0 ? "AND b.categories && $5::building_category[]" : "";
   const eraCondition = eras.length > 0 ? "AND b.era = ANY($6::building_era[])" : "";
+  const stepFreeCondition = stepFreeOnly ? "AND b.is_step_free = true" : "";
+  const gradientCondition =
+    maxGradientPercent !== undefined
+      ? `AND (b.max_gradient_percent IS NULL OR b.max_gradient_percent <= ${maxGradientPercent})`
+      : "";
 
   const params: unknown[] = [lat, lng, radiusMeters, maxStops * 4];
   if (categories.length) params.push(`{${categories.join(",")}}`);
@@ -133,6 +145,7 @@ export async function generateRoute(input: GenerateRouteInput) {
     `SELECT
        b.id, b.name, b.short_description, b.architect, b.year_completed,
        b.address, b.city, b.categories, b.era, b.audio_guide_url,
+       b.is_step_free, b.max_gradient_percent, b.surface_type,
        ST_Y(b.location::geometry) AS lat,
        ST_X(b.location::geometry) AS lng,
        ST_Distance(b.location, ST_SetSRID(ST_MakePoint($2, $1), 4326)::geography) AS distance_from_origin
@@ -145,6 +158,8 @@ export async function generateRoute(input: GenerateRouteInput) {
        )
        ${categoryCondition}
        ${eraCondition}
+       ${stepFreeCondition}
+       ${gradientCondition}
      ORDER BY distance_from_origin
      LIMIT $4`,
     params
@@ -159,6 +174,12 @@ export async function generateRoute(input: GenerateRouteInput) {
     ...new Set(stops.flatMap((s) => s.categories)),
   ] as BuildingCategory[];
 
+  const isStepFree = stops.every((s) => s.is_step_free);
+  const maxGrad = stops.reduce(
+    (max, s) => (s.max_gradient_percent !== null && s.max_gradient_percent > max ? s.max_gradient_percent : max),
+    0
+  );
+
   return {
     title: `${stops[0]?.city ?? "City"} Walk`,
     description: `A curated ${metrics.estimatedDurationMinutes}-minute walk through ${stops.length} architectural highlights.`,
@@ -170,7 +191,9 @@ export async function generateRoute(input: GenerateRouteInput) {
     estimatedDurationMinutes: metrics.estimatedDurationMinutes,
     difficultyLevel: difficultyFrom(metrics.estimatedSteps),
     status: "draft" as const,
-    tags: [],
+    tags: stepFreeOnly ? ["step-free"] : [],
+    isStepFree,
+    maxGradientPercent: maxGrad > 0 ? maxGrad : null,
     stops: stops.map((b, i) => ({
       order: i + 1,
       dwellTimeMinutes: DWELL_TIME_MINUTES,
@@ -187,6 +210,8 @@ export async function generateRoute(input: GenerateRouteInput) {
         era: b.era,
         coordinates: { lat: b.lat, lng: b.lng },
         audioGuideUrl: b.audio_guide_url,
+        isStepFree: b.is_step_free,
+        surfaceType: b.surface_type,
       },
     })),
   };

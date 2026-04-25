@@ -280,3 +280,66 @@ export interface GeofenceEvent {
   buildingId: string;
   buildingName: string;
 }
+
+// ─── Archive (Layer 3) ───────────────────────────────────────────────────────
+
+export interface ArchiveRecord {
+  id: string;
+  buildingId: string;
+  title: string;
+  description: string;
+  year?: number;
+  documentUrl?: string;
+  imageUrl?: string;
+  thumbnailUrl?: string;
+  source: DataSource;
+  planinnsynCaseId?: string;
+  isFloorPlan: boolean;
+  isConstructionDrawing: boolean;
+}
+
+// ─── Itinerary (Layer 3) ──────────────────────────────────────────────────────
+
+export type ItineraryTheme = "architecture" | "heritage" | "modern" | "mixed";
+
+export interface ItineraryDay {
+  id: string;
+  itineraryId: string;
+  dayNumber: number;
+  title: string;
+  routeId?: string;
+  route?: Route;
+  notes?: string;
+}
+
+export interface ItinerarySummary {
+  id: string;
+  title: string;
+  city: string;
+  theme: ItineraryTheme;
+  daysCount: number;
+  createdAt: string;
+}
+
+export interface Itinerary extends ItinerarySummary {
+  description?: string;
+  days: ItineraryDay[];
+}
+
+export interface CreateItineraryInput {
+  title: string;
+  city: string;
+  theme: ItineraryTheme;
+  description?: string;
+  routeIds: string[];
+}
+
+// ─── Accessibility (Layer 3) ─────────────────────────────────────────────────
+
+export interface AccessibilityInfo {
+  isStepFree: boolean;
+  maxGradientPercent?: number;
+  hasBenchesEveryNMeters?: number;
+  surfaceType?: "paved" | "cobblestone" | "gravel" | "mixed";
+  notes?: string;
+}

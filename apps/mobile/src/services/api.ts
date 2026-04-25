@@ -1,4 +1,4 @@
-import type { PaginatedResponse, Route, RouteFilters, WalkLogInput, WalkLog, WalkStats, CollectionSummary, Collection } from "@wandr/shared";
+import type { PaginatedResponse, Route, RouteFilters, WalkLogInput, WalkLog, WalkStats, CollectionSummary, Collection, PitStop, ArchiveRecord, Itinerary, ItinerarySummary, ItineraryDay, CreateItineraryInput } from "@wandr/shared";
 
 const BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:3000/api/v1";
 
@@ -54,5 +54,21 @@ export const api = {
 
   offline: {
     getRoute: (routeId: string) => get<Route>(`/routes/${routeId}`),
+  },
+
+  pitStops: {
+    list: (routeId: string) => get<PitStop[]>(`/routes/${routeId}/pitstops`),
+  },
+
+  archive: {
+    list: (buildingId: string) => get<ArchiveRecord[]>(`/buildings/${buildingId}/archive`),
+  },
+
+  itineraries: {
+    list: () => get<ItinerarySummary[]>("/itineraries"),
+    get: (id: string) => get<Itinerary>(`/itineraries/${id}`),
+    create: (input: CreateItineraryInput) => post<Itinerary>("/itineraries", input),
+    addDay: (id: string, routeId: string, dayNumber: number) =>
+      post<ItineraryDay>(`/itineraries/${id}/days`, { routeId, dayNumber }),
   },
 };

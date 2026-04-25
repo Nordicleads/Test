@@ -10,6 +10,8 @@ const schema = z.object({
   eras: z.array(z.string()).optional(),
   stepGoal: z.number().min(1_000).max(30_000).optional(),
   maxStops: z.number().min(2).max(20).optional(),
+  stepFreeOnly: z.boolean().optional(),
+  maxGradientPercent: z.number().min(0).max(30).optional(),
 });
 
 export async function generateRoutes(app: FastifyInstance) {

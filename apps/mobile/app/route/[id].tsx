@@ -2,13 +2,16 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from "react-nati
 import { useLocalSearchParams, useRouter } from "expo-router";
 import MapView, { Marker, Polyline, PROVIDER_GOOGLE } from "react-native-maps";
 import { useRoute } from "../../src/hooks/useRoutes";
+import { usePitStops } from "../../src/hooks/usePitStops";
 import { openInMaps } from "../../src/services/maps";
 import { VoiceGuideControls } from "../../src/components/VoiceGuideControls";
+import { PitStopCard } from "../../src/components/PitStopCard";
 
 export default function RouteDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const { data: route, isLoading } = useRoute(id);
+  const { data: pitStops } = usePitStops(id);
 
   if (isLoading || !route) {
     return (
@@ -19,8 +22,8 @@ export default function RouteDetailScreen() {
   }
 
   const coordinates = route.stops?.map((s: any) => ({
-    latitude: s.building.lat,
-    longitude: s.building.lng,
+    latitude: s.building.coordinates.lat,
+    longitude: s.building.coordinates.lng,
   })) ?? [];
 
   const firstStop = coordinates[0];
@@ -41,7 +44,7 @@ export default function RouteDetailScreen() {
           {route.stops?.map((stop: any, i: number) => (
             <Marker
               key={stop.id}
-              coordinate={{ latitude: stop.building.lat, longitude: stop.building.lng }}
+              coordinate={{ latitude: stop.building.coordinates.lat, longitude: stop.building.coordinates.lng }}
               title={`${i + 1}. ${stop.building.name}`}
               onCalloutPress={() => router.push(`/building/${stop.building.id}`)}
             />
@@ -70,6 +73,15 @@ export default function RouteDetailScreen() {
         >
           <Text style={styles.startButtonText}>Start Walk</Text>
         </TouchableOpacity>
+
+        {pitStops && pitStops.length > 0 && (
+          <>
+            <Text style={styles.sectionTitle}>PIT STOPS</Text>
+            {pitStops.map((ps: any) => (
+              <PitStopCard key={ps.id} stop={ps} />
+            ))}
+          </>
+        )}
       </ScrollView>
       <VoiceGuideControls />
     </View>
@@ -79,7 +91,7 @@ export default function RouteDetailScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#0f0f0f" },
   map: { flex: 1 },
-  panel: { maxHeight: 340, backgroundColor: "#161616" },
+  panel: { maxHeight: 420, backgroundColor: "#161616" },
   panelContent: { padding: 24, gap: 12 },
   title: { fontSize: 22, fontWeight: "700", color: "#f0ece4" },
   meta: { flexDirection: "row", gap: 8, flexWrap: "wrap" },
@@ -87,6 +99,7 @@ const styles = StyleSheet.create({
   description: { color: "#888", lineHeight: 22, fontSize: 14 },
   startButton: { backgroundColor: "#d4a853", borderRadius: 12, paddingVertical: 16, alignItems: "center", marginTop: 8 },
   startButtonText: { color: "#0f0f0f", fontWeight: "700", fontSize: 16, letterSpacing: 1 },
+  sectionTitle: { fontSize: 11, fontWeight: "700", color: "#d4a853", letterSpacing: 2, marginTop: 8 },
   center: { flex: 1, backgroundColor: "#0f0f0f", alignItems: "center", justifyContent: "center" },
   muted: { color: "#555" },
 });

@@ -9,6 +9,8 @@ interface GenerateInput {
   categories?: BuildingCategory[];
   stepGoal?: number;
   radiusMeters?: number;
+  stepFreeOnly?: boolean;
+  maxGradientPercent?: number;
 }
 
 async function postGenerate(input: GenerateInput) {

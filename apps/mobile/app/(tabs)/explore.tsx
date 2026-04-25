@@ -24,6 +24,7 @@ export default function ExploreScreen() {
   const [search, setSearch] = useState("");
   const [selectedCategories, setSelectedCategories] = useState<BuildingCategory[]>([]);
   const [stepGoal, setStepGoal] = useState(10_000);
+  const [stepFreeOnly, setStepFreeOnly] = useState(false);
 
   const { data: routesData, isLoading: routesLoading } = useRoutes({
     status: "published",
@@ -54,6 +55,7 @@ export default function ExploreScreen() {
         categories: selectedCategories.length > 0 ? selectedCategories : undefined,
         stepGoal,
         radiusMeters: 2_000,
+        stepFreeOnly: stepFreeOnly || undefined,
       },
       {
         onSuccess: (route) => {
@@ -139,6 +141,8 @@ export default function ExploreScreen() {
               onToggleCategory={toggleCategory}
               stepGoal={stepGoal}
               onStepGoal={setStepGoal}
+              stepFreeOnly={stepFreeOnly}
+              onToggleStepFree={() => setStepFreeOnly((v) => !v)}
               onGenerate={handleGenerate}
               isGenerating={isPending}
             />

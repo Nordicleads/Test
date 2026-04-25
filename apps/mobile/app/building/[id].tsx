@@ -1,13 +1,14 @@
 import {
   View, Text, StyleSheet, ScrollView,
-  TouchableOpacity, Image, Dimensions,
+  TouchableOpacity, Image, Dimensions, Linking,
 } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "../../src/services/api";
 import { openInMaps } from "../../src/services/maps";
+import { useArchive } from "../../src/hooks/useArchive";
 import { CATEGORY_LABELS, ERA_LABELS } from "@wandr/shared";
-import type { BuildingCategory, BuildingEra } from "@wandr/shared";
+import type { BuildingCategory, BuildingEra, ArchiveRecord } from "@wandr/shared";
 
 const { width } = Dimensions.get("window");
 
@@ -20,6 +21,7 @@ export default function BuildingDetailScreen() {
     queryFn: () => api.buildings.get(id!),
     enabled: !!id,
   });
+  const { data: archiveRecords } = useArchive(id);
 
   if (isLoading || !building) {
     return (
@@ -82,20 +84,31 @@ export default function BuildingDetailScreen() {
         {/* Description */}
         <Text style={styles.description}>{building.description}</Text>
 
-        {/* Navigate CTA */}
-        <TouchableOpacity
-          style={styles.navButton}
-          onPress={() =>
-            openInMaps({
-              lat: building.lat,
-              lng: building.lng,
-              name: building.name,
-              address: building.address,
-            })
-          }
-        >
-          <Text style={styles.navButtonText}>Navigate Here</Text>
-        </TouchableOpacity>
+        {/* CTA row */}
+        <View style={styles.ctaRow}>
+          <TouchableOpacity
+            style={[styles.navButton, styles.ctaFlex]}
+            onPress={() =>
+              openInMaps({
+                lat: building.lat,
+                lng: building.lng,
+                name: building.name,
+                address: building.address,
+              })
+            }
+          >
+            <Text style={styles.navButtonText}>Navigate Here</Text>
+          </TouchableOpacity>
+
+          {(building.images ?? []).some((i: any) => i.is_historical) && (
+            <TouchableOpacity
+              style={styles.arButton}
+              onPress={() => router.push(`/building/ar?id=${building.id}`)}
+            >
+              <Text style={styles.arButtonText}>AR</Text>
+            </TouchableOpacity>
+          )}
+        </View>
 
         {/* Historical images */}
         {historicalImages.length > 0 && (
@@ -126,6 +139,35 @@ export default function BuildingDetailScreen() {
                 {r.year && <Text style={styles.recordYear}>{r.year}</Text>}
                 <Text style={styles.recordBody}>{r.description}</Text>
               </View>
+            ))}
+          </>
+        )}
+
+        {/* Planinnsyn planning documents */}
+        {archiveRecords && archiveRecords.length > 0 && (
+          <>
+            <Text style={styles.sectionTitle}>Planning Documents</Text>
+            {archiveRecords.map((r: ArchiveRecord) => (
+              <TouchableOpacity
+                key={r.id}
+                style={styles.recordCard}
+                onPress={() => r.documentUrl ? Linking.openURL(r.documentUrl) : undefined}
+                disabled={!r.documentUrl}
+              >
+                <View style={styles.recordHeader}>
+                  <Text style={styles.recordTitle}>{r.title}</Text>
+                  {(r.isFloorPlan || r.isConstructionDrawing) && (
+                    <Text style={styles.recordBadge}>
+                      {r.isFloorPlan ? "Floor Plan" : "Drawing"}
+                    </Text>
+                  )}
+                </View>
+                {r.year && <Text style={styles.recordYear}>{r.year}</Text>}
+                <Text style={styles.recordBody}>{r.description}</Text>
+                {r.documentUrl && (
+                  <Text style={styles.recordLink}>View document →</Text>
+                )}
+              </TouchableOpacity>
             ))}
           </>
         )}
@@ -175,14 +217,26 @@ const styles = StyleSheet.create({
 
   description: { fontSize: 15, color: "#b0a898", lineHeight: 24, marginTop: 4 },
 
+  ctaRow: { flexDirection: "row", gap: 10, marginTop: 8 },
+  ctaFlex: { flex: 1 },
   navButton: {
     backgroundColor: "#d4a853",
     borderRadius: 12,
     paddingVertical: 16,
     alignItems: "center",
-    marginTop: 8,
   },
   navButtonText: { color: "#0f0f0f", fontWeight: "700", fontSize: 15, letterSpacing: 0.5 },
+  arButton: {
+    backgroundColor: "transparent",
+    borderWidth: 1,
+    borderColor: "#d4a853",
+    borderRadius: 12,
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  arButtonText: { color: "#d4a853", fontWeight: "700", fontSize: 13, letterSpacing: 1 },
 
   sectionTitle: { fontSize: 14, fontWeight: "700", color: "#f0ece4", marginTop: 16, letterSpacing: 1 },
 
@@ -197,7 +251,10 @@ const styles = StyleSheet.create({
     padding: 16,
     gap: 4,
   },
-  recordTitle: { fontSize: 14, fontWeight: "600", color: "#f0ece4" },
+  recordHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" },
+  recordTitle: { fontSize: 14, fontWeight: "600", color: "#f0ece4", flex: 1 },
+  recordBadge: { fontSize: 10, color: "#0f0f0f", backgroundColor: "#d4a853", borderRadius: 4, paddingHorizontal: 6, paddingVertical: 2, fontWeight: "700" },
   recordYear: { fontSize: 11, color: "#d4a853" },
   recordBody: { fontSize: 13, color: "#888", lineHeight: 20 },
+  recordLink: { fontSize: 12, color: "#d4a853", marginTop: 4 },
 });

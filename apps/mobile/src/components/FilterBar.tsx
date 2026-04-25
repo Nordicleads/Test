@@ -19,6 +19,8 @@ interface Props {
   onToggleCategory: (cat: BuildingCategory) => void;
   stepGoal: number;
   onStepGoal: (goal: number) => void;
+  stepFreeOnly?: boolean;
+  onToggleStepFree?: () => void;
   onGenerate: () => void;
   isGenerating: boolean;
 }
@@ -28,6 +30,8 @@ export function FilterBar({
   onToggleCategory,
   stepGoal,
   onStepGoal,
+  stepFreeOnly = false,
+  onToggleStepFree,
   onGenerate,
   isGenerating,
 }: Props) {
@@ -74,6 +78,18 @@ export function FilterBar({
         </ScrollView>
       </View>
 
+      {/* Accessibility toggle */}
+      {onToggleStepFree && (
+        <TouchableOpacity
+          style={[styles.accessChip, stepFreeOnly && styles.accessChipActive]}
+          onPress={onToggleStepFree}
+        >
+          <Text style={[styles.accessText, stepFreeOnly && styles.accessTextActive]}>
+            ♿ Step-Free Routes Only
+          </Text>
+        </TouchableOpacity>
+      )}
+
       {/* Generate button */}
       <TouchableOpacity
         style={[styles.generateBtn, isGenerating && styles.generateBtnDisabled]}
@@ -115,6 +131,18 @@ const styles = StyleSheet.create({
   catChipActive: { borderColor: "#d4a853" },
   catText: { color: "#555", fontSize: 12 },
   catTextActive: { color: "#d4a853" },
+
+  accessChip: {
+    borderWidth: 1,
+    borderColor: "#333",
+    borderRadius: 20,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    alignSelf: "flex-start",
+  },
+  accessChipActive: { borderColor: "#d4a853", backgroundColor: "rgba(212,168,83,0.1)" },
+  accessText: { color: "#555", fontSize: 13 },
+  accessTextActive: { color: "#d4a853", fontWeight: "600" },
 
   generateBtn: {
     backgroundColor: "#d4a853",
