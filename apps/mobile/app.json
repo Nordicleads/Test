@@ -1,0 +1,58 @@
+{
+  "expo": {
+    "name": "Wandr",
+    "slug": "wandr",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "scheme": "wandr",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "automatic",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#1a1a1a"
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Wandr needs your location to show nearby buildings and guide you along routes.",
+          "locationAlwaysPermission": "Wandr needs background location to trigger audio guides as you arrive at each stop."
+        }
+      ],
+      [
+        "expo-av",
+        {
+          "microphonePermission": false
+        }
+      ]
+    ],
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.wandr.app",
+      "infoPlist": {
+        "NSHealthShareUsageDescription": "Wandr logs your walks to Apple Health so you can track steps and active calories.",
+        "NSHealthUpdateUsageDescription": "Wandr saves your walk data to Apple Health."
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#1a1a1a"
+      },
+      "package": "com.wandr.app",
+      "permissions": [
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_BACKGROUND_LOCATION",
+        "ACTIVITY_RECOGNITION"
+      ]
+    },
+    "extra": {
+      "eas": {
+        "projectId": "replace-with-eas-project-id"
+      }
+    }
+  }
+}

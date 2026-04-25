@@ -1,0 +1,71 @@
+# Technical Roadmap
+
+Sequenced by dependency, not time.
+Tracks marked [PARALLEL] can be built simultaneously once their dependencies are met.
+Everything in a layer can start as soon as the layer above it is complete.
+
+---
+
+## Layer 0 — Foundation (blocks everything)
+
+- [x] Define core data model: `Building`, `Route`, `Stop`, `Category`, `HistoricalRecord`
+- [ ] Establish data pipeline: Kartverket + Planinnsyn (Norway) + UNESCO public API + Google Places
+- [x] Native maps SDK integration scaffolding: Apple Maps (MapKit), Google Maps, fallback to OpenStreetMap
+- [x] Project architecture: monorepo structure, API layer, mobile client (React Native or Swift/Kotlin native), offline storage strategy
+
+---
+
+## Layer 1 — Core (sequential)
+
+- [x] Building and landmark database: ingest, normalize, and store records from connected data sources
+- [x] Route generation engine: takes user location + filters → returns ordered list of stops with walking path
+- [x] Filter system: by typology (new build, medieval, civic, transformation, under construction, UNESCO, landmark), era, and distance
+- [x] Building detail view: name, description, architect, year, category, archive images, historical context
+- [x] Map view: route overlay, stop markers, current position, next-stop navigation handoff to native maps app
+
+---
+
+## Layer 2 — [PARALLEL tracks]
+
+**Track A — Offline Mode:**
+- [ ] Route serialization: package all stops, map tiles, images, and audio into a downloadable bundle
+- [ ] Local cache management: store, update, and delete offline routes
+- [ ] Offline-aware UI: clear indicators when operating without connection
+
+**Track B — Voice Tour Guide:**
+- [ ] Geofencing engine: detect arrival within radius of each stop
+- [ ] Audio narration system: TTS or pre-recorded audio activates automatically on arrival
+- [ ] Guide content pipeline: structured scripts per building, authored or AI-generated and editorially reviewed
+- [ ] Background audio support: guide plays while screen is locked or maps app is open
+
+**Track C — Health & Fitness Integration:**
+- [ ] Step count and distance calculation per route (pre-walk estimate)
+- [ ] Apple HealthKit + Google Fit integration: log completed walks
+- [ ] Fitness goal route mode: user selects target (5k / 10k / 15k / 20k steps) → app generates route that hits the goal
+- [ ] Post-walk summary: steps walked, distance, buildings visited, calories (estimated)
+
+**Track D — Discovery & Editorial:**
+- [ ] Curated collections: "Brutalist Oslo", "Starchitects of Barcelona", "UNESCO World Heritage Walk"
+- [ ] Search and browse: find routes by city, theme, duration, or step count
+- [ ] Saved routes and favorites
+- [ ] "What's nearby?" mode: shows culturally significant buildings within walking radius of current location
+
+---
+
+## Layer 3 — Enhanced Experiences
+
+- [ ] Historical AR view: camera overlay showing building facades as they appeared in historical archive images (phone camera first, Meta glasses second)
+- [ ] City archive deep integration: pull floor plans, construction drawings, planning documents where available (Planinnsyn, municipal archives)
+- [ ] Pit stop suggestions: coffee shops and restaurants along the route, surfaced at appropriate moments (mid-route, post-walk)
+- [ ] Accessibility route options: step-free alternatives, gradient indicators, bench locations
+- [ ] Multi-day itinerary mode: plan a full trip across several days with culturally themed days
+
+---
+
+## Layer 4 — Platform & Partnerships
+
+- [ ] App Store submission: Apple App Store + Google Play, targeting Travel and Lifestyle editorial placement
+- [ ] Institutional API agreements: Visit Norway, Visit Oslo, national heritage registries, city tourism boards
+- [ ] White-label / embed option: let Visit-pages and cultural institutions embed routes in their own apps or websites
+- [ ] Analytics and feedback loop: route completion rates, most-visited stops, drop-off points, user ratings per building
+- [ ] Referral and sharing: share a route as a link that opens in the app or renders as a web preview

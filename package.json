@@ -1,0 +1,17 @@
+{
+  "name": "wandr",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "api": "npm run dev --workspace=apps/api",
+    "mobile": "npm run start --workspace=apps/mobile",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "build": "npm run build --workspaces --if-present"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}
