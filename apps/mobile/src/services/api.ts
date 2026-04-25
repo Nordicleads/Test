@@ -1,4 +1,4 @@
-import type { PaginatedResponse, Route, RouteFilters } from "@wandr/shared";
+import type { PaginatedResponse, Route, RouteFilters, WalkLogInput, WalkLog, WalkStats, CollectionSummary, Collection } from "@wandr/shared";
 
 const BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:3000/api/v1";
 
@@ -10,6 +10,16 @@ async function get<T>(path: string, params?: Record<string, string | number | un
     });
   }
   const res = await fetch(url.toString());
+  if (!res.ok) throw new Error(`API error ${res.status}: ${path}`);
+  return res.json() as Promise<T>;
+}
+
+async function post<T>(path: string, body: unknown): Promise<T> {
+  const res = await fetch(`${BASE_URL}${path}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
   if (!res.ok) throw new Error(`API error ${res.status}: ${path}`);
   return res.json() as Promise<T>;
 }
@@ -31,8 +41,18 @@ export const api = {
       get<any>(`/buildings/${id}`),
   },
 
-  // Stubs — each parallel agent replaces one
-  offline: {} as any,
-  walks: {} as any,
-  collections: {} as any,
+  walks: {
+    log: (input: WalkLogInput) => post<WalkLog>("/walks", input),
+    stats: () => get<WalkStats>("/walks/stats"),
+    history: (limit = 20) => get<WalkLog[]>("/walks", { limit }),
+  },
+
+  collections: {
+    list: () => get<CollectionSummary[]>("/collections"),
+    get: (id: string) => get<Collection>(`/collections/${id}`),
+  },
+
+  offline: {
+    getRoute: (routeId: string) => get<Route>(`/routes/${routeId}`),
+  },
 };

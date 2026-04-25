@@ -3,6 +3,7 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import MapView, { Marker, Polyline, PROVIDER_GOOGLE } from "react-native-maps";
 import { useRoute } from "../../src/hooks/useRoutes";
 import { openInMaps } from "../../src/services/maps";
+import { VoiceGuideControls } from "../../src/components/VoiceGuideControls";
 
 export default function RouteDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -70,6 +71,7 @@ export default function RouteDetailScreen() {
           <Text style={styles.startButtonText}>Start Walk</Text>
         </TouchableOpacity>
       </ScrollView>
+      <VoiceGuideControls />
     </View>
   );
 }

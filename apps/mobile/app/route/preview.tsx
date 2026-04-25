@@ -2,10 +2,12 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from "rea
 import { useLocalSearchParams, useRouter } from "expo-router";
 import MapView, { Marker, Polyline, PROVIDER_GOOGLE } from "react-native-maps";
 import { openFullRouteInMaps } from "../../src/services/maps";
+import { useVoiceGuide } from "../../src/hooks/useVoiceGuide";
 
 export default function RoutePreviewScreen() {
   const { data } = useLocalSearchParams<{ data: string }>();
   const router = useRouter();
+  const { startGuide } = useVoiceGuide();
 
   let route: any = null;
   try {
@@ -103,6 +105,15 @@ export default function RoutePreviewScreen() {
           <Text style={styles.startButtonText}>Open in Maps</Text>
         </TouchableOpacity>
 
+        {(route.stops ?? []).length > 0 && (
+          <TouchableOpacity
+            style={styles.voiceButton}
+            onPress={() => startGuide(route.stops ?? [])}
+          >
+            <Text style={styles.voiceButtonText}>▶ Start Voice Guide</Text>
+          </TouchableOpacity>
+        )}
+
         <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
           <Text style={styles.backText}>← Back to Explore</Text>
         </TouchableOpacity>
@@ -154,6 +165,14 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   startButtonText: { color: "#0f0f0f", fontWeight: "700", fontSize: 15 },
+  voiceButton: {
+    borderWidth: 1,
+    borderColor: "#d4a853",
+    borderRadius: 12,
+    paddingVertical: 14,
+    alignItems: "center",
+  },
+  voiceButtonText: { color: "#d4a853", fontWeight: "700", fontSize: 15 },
   backButton: { alignItems: "center", paddingVertical: 8 },
   backText: { color: "#555", fontSize: 13 },
 });
