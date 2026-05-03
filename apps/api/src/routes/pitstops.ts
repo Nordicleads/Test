@@ -12,8 +12,8 @@ export async function pitStopRoutes(app: FastifyInstance) {
 
     const stops = await query<{ order: number; lat: number; lng: number }>(
       `SELECT rs.stop_order AS "order",
-              ST_Y(b.location::geometry) AS lat,
-              ST_X(b.location::geometry) AS lng
+              b.lat,
+              b.lng
        FROM route_stops rs
        JOIN buildings b ON b.id = rs.building_id
        WHERE rs.route_id = $1

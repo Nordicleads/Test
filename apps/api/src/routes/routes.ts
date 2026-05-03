@@ -79,8 +79,8 @@ export async function routeRoutes(app: FastifyInstance) {
                       'shortDescription', b.short_description,
                       'address', b.address,
                       'categories', b.categories,
-                      'lat', ST_Y(b.location::geometry),
-                      'lng', ST_X(b.location::geometry),
+                      'lat', b.lat,
+                      'lng', b.lng,
                       'audioGuideUrl', b.audio_guide_url
                     )
                   ) ORDER BY rs.stop_order
