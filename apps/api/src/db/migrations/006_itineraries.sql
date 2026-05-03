@@ -25,4 +25,4 @@ CREATE INDEX idx_itinerary_days_itinerary ON itinerary_days (itinerary_id, day_n
 
 CREATE TRIGGER update_itineraries_updated_at
   BEFORE UPDATE ON itineraries
-  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at();
