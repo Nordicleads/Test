@@ -1,5 +1,3 @@
--- ─── Enums ───────────────────────────────────────────────────────────────────
-
 CREATE TYPE building_category AS ENUM (
   'new_build', 'medieval', 'civic', 'transformation',
   'under_construction', 'planned', 'landmark', 'religious',
@@ -17,8 +15,6 @@ CREATE TYPE data_source AS ENUM (
 
 CREATE TYPE route_status AS ENUM ('draft', 'published', 'archived');
 
--- ─── Buildings ───────────────────────────────────────────────────────────────
-
 CREATE TABLE buildings (
   id                UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   name              TEXT NOT NULL,
@@ -31,13 +27,14 @@ CREATE TABLE buildings (
   address           TEXT NOT NULL,
   city              TEXT NOT NULL,
   country           TEXT NOT NULL DEFAULT 'NO',
-  location          GEOGRAPHY(POINT, 4326) NOT NULL,
+  lat               DECIMAL(10,8) NOT NULL DEFAULT 0,
+  lng               DECIMAL(11,8) NOT NULL DEFAULT 0,
   categories        building_category[] NOT NULL DEFAULT '{}',
   era               building_era,
   sources           data_source[] NOT NULL DEFAULT '{}',
-  external_kartverket   TEXT,
-  external_planinnsyn   TEXT,
-  external_unesco       TEXT,
+  external_kartverket    TEXT,
+  external_planinnsyn    TEXT,
+  external_unesco        TEXT,
   external_google_places TEXT,
   audio_guide_url   TEXT,
   is_verified       BOOLEAN NOT NULL DEFAULT false,
@@ -45,11 +42,9 @@ CREATE TABLE buildings (
   updated_at        TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX idx_buildings_location ON buildings USING GIST (location);
 CREATE INDEX idx_buildings_city ON buildings (city);
 CREATE INDEX idx_buildings_categories ON buildings USING GIN (categories);
-
--- ─── Building Images ─────────────────────────────────────────────────────────
+CREATE INDEX idx_buildings_latlon ON buildings (lat, lng);
 
 CREATE TABLE building_images (
   id           UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -64,8 +59,6 @@ CREATE TABLE building_images (
 
 CREATE INDEX idx_building_images_building ON building_images (building_id);
 
--- ─── Historical Records ──────────────────────────────────────────────────────
-
 CREATE TABLE historical_records (
   id           UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   building_id  UUID NOT NULL REFERENCES buildings(id) ON DELETE CASCADE,
@@ -79,8 +72,6 @@ CREATE TABLE historical_records (
 );
 
 CREATE INDEX idx_historical_records_building ON historical_records (building_id);
-
--- ─── Routes ──────────────────────────────────────────────────────────────────
 
 CREATE TABLE routes (
   id                         UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -105,29 +96,26 @@ CREATE INDEX idx_routes_status ON routes (status);
 CREATE INDEX idx_routes_categories ON routes USING GIN (categories);
 CREATE INDEX idx_routes_steps ON routes (estimated_steps);
 
--- ─── Route Stops ─────────────────────────────────────────────────────────────
-
 CREATE TABLE route_stops (
-  id                           UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  route_id                     UUID NOT NULL REFERENCES routes(id) ON DELETE CASCADE,
-  building_id                  UUID NOT NULL REFERENCES buildings(id),
-  stop_order                   INTEGER NOT NULL,
-  dwell_time_minutes           INTEGER NOT NULL DEFAULT 10,
-  narrative_text               TEXT NOT NULL DEFAULT '',
+  id                            UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  route_id                      UUID NOT NULL REFERENCES routes(id) ON DELETE CASCADE,
+  building_id                   UUID NOT NULL REFERENCES buildings(id),
+  stop_order                    INTEGER NOT NULL,
+  dwell_time_minutes            INTEGER NOT NULL DEFAULT 10,
+  narrative_text                TEXT NOT NULL DEFAULT '',
   arrival_trigger_radius_meters INTEGER NOT NULL DEFAULT 50,
   UNIQUE (route_id, stop_order)
 );
 
 CREATE INDEX idx_route_stops_route ON route_stops (route_id);
 
--- ─── Pit Stops ───────────────────────────────────────────────────────────────
-
 CREATE TABLE pit_stops (
   id                         UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   route_id                   UUID NOT NULL REFERENCES routes(id) ON DELETE CASCADE,
   name                       TEXT NOT NULL,
   type                       TEXT NOT NULL CHECK (type IN ('cafe', 'restaurant', 'water', 'restroom', 'viewpoint')),
-  location                   GEOGRAPHY(POINT, 4326) NOT NULL,
+  lat                        DECIMAL(10,8) NOT NULL DEFAULT 0,
+  lng                        DECIMAL(11,8) NOT NULL DEFAULT 0,
   address                    TEXT,
   google_places_id           TEXT,
   distance_from_route_meters INTEGER NOT NULL DEFAULT 0,
@@ -135,9 +123,6 @@ CREATE TABLE pit_stops (
 );
 
 CREATE INDEX idx_pit_stops_route ON pit_stops (route_id);
-CREATE INDEX idx_pit_stops_location ON pit_stops USING GIST (location);
-
--- ─── Auto-update timestamps ──────────────────────────────────────────────────
 
 CREATE OR REPLACE FUNCTION update_updated_at()
 RETURNS TRIGGER AS $$

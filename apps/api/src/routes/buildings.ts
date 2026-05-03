@@ -22,19 +22,15 @@ export async function buildingRoutes(app: FastifyInstance) {
       `SELECT
          b.id, b.name, b.short_description, b.architect, b.year_completed,
          b.address, b.city, b.categories, b.era, b.is_verified,
-         ST_Y(b.location::geometry) AS lat,
-         ST_X(b.location::geometry) AS lng,
-         ST_Distance(b.location, ST_SetSRID(ST_MakePoint($2, $1), 4326)::geography) AS distance_meters,
+         b.lat, b.lng,
+         (6371000 * acos(LEAST(1.0, cos(radians($1)) * cos(radians(b.lat)) * cos(radians(b.lng) - radians($2)) + sin(radians($1)) * sin(radians(b.lat))))) AS distance_meters,
          COALESCE(
            json_agg(bi ORDER BY bi.sort_order) FILTER (WHERE bi.id IS NOT NULL), '[]'
          ) AS images
        FROM buildings b
        LEFT JOIN building_images bi ON bi.building_id = b.id AND bi.is_historical = false
-       WHERE ST_DWithin(
-         b.location,
-         ST_SetSRID(ST_MakePoint($2, $1), 4326)::geography,
-         $3
-       )
+       WHERE b.lat BETWEEN $1 - $3 / 111320.0 AND $1 + $3 / 111320.0
+         AND b.lng BETWEEN $2 - $3 / (111320.0 * cos(radians($1))) AND $2 + $3 / (111320.0 * cos(radians($1)))
        ${categoryFilter.length ? "AND b.categories && $5::building_category[]" : ""}
        GROUP BY b.id
        ORDER BY distance_meters
@@ -51,8 +47,6 @@ export async function buildingRoutes(app: FastifyInstance) {
     const building = await queryOne(
       `SELECT
          b.*,
-         ST_Y(b.location::geometry) AS lat,
-         ST_X(b.location::geometry) AS lng,
          COALESCE(
            json_agg(DISTINCT bi ORDER BY bi.sort_order) FILTER (WHERE bi.id IS NOT NULL), '[]'
          ) AS images,

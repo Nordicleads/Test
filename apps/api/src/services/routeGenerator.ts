@@ -146,16 +146,12 @@ export async function generateRoute(input: GenerateRouteInput) {
        b.id, b.name, b.short_description, b.architect, b.year_completed,
        b.address, b.city, b.categories, b.era, b.audio_guide_url,
        b.is_step_free, b.max_gradient_percent, b.surface_type,
-       ST_Y(b.location::geometry) AS lat,
-       ST_X(b.location::geometry) AS lng,
-       ST_Distance(b.location, ST_SetSRID(ST_MakePoint($2, $1), 4326)::geography) AS distance_from_origin
+       b.lat, b.lng,
+       (6371000 * acos(LEAST(1.0, cos(radians($1)) * cos(radians(b.lat)) * cos(radians(b.lng) - radians($2)) + sin(radians($1)) * sin(radians(b.lat))))) AS distance_from_origin
      FROM buildings b
      WHERE b.is_verified = true
-       AND ST_DWithin(
-         b.location,
-         ST_SetSRID(ST_MakePoint($2, $1), 4326)::geography,
-         $3
-       )
+       AND b.lat BETWEEN $1 - $3 / 111320.0 AND $1 + $3 / 111320.0
+       AND b.lng BETWEEN $2 - $3 / (111320.0 * cos(radians($1))) AND $2 + $3 / (111320.0 * cos(radians($1)))
        ${categoryCondition}
        ${eraCondition}
        ${stepFreeCondition}
