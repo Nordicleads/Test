@@ -14,11 +14,22 @@ const DISPLAYED_CATEGORIES: BuildingCategory[] = [
   "unesco",
 ];
 
+const STOP_OPTIONS = [
+  { label: "Auto", value: 0 },
+  { label: "2", value: 2 },
+  { label: "3", value: 3 },
+  { label: "5", value: 5 },
+  { label: "8", value: 8 },
+  { label: "10", value: 10 },
+] as const;
+
 interface Props {
   selectedCategories: BuildingCategory[];
   onToggleCategory: (cat: BuildingCategory) => void;
   stepGoal: number;
   onStepGoal: (goal: number) => void;
+  maxStops: number;
+  onMaxStops: (n: number) => void;
   stepFreeOnly?: boolean;
   onToggleStepFree?: () => void;
   onGenerate: () => void;
@@ -30,6 +41,8 @@ export function FilterBar({
   onToggleCategory,
   stepGoal,
   onStepGoal,
+  maxStops,
+  onMaxStops,
   stepFreeOnly = false,
   onToggleStepFree,
   onGenerate,
@@ -49,6 +62,24 @@ export function FilterBar({
             >
               <Text style={[styles.goalText, stepGoal === goal && styles.goalTextActive]}>
                 {(goal / 1000).toFixed(0)}k
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      </View>
+
+      {/* Stops selector */}
+      <View style={styles.section}>
+        <Text style={styles.label}>BUILDINGS TO VISIT</Text>
+        <View style={styles.row}>
+          {STOP_OPTIONS.map((opt) => (
+            <TouchableOpacity
+              key={opt.value}
+              style={[styles.goalChip, maxStops === opt.value && styles.goalChipActive]}
+              onPress={() => onMaxStops(opt.value)}
+            >
+              <Text style={[styles.goalText, maxStops === opt.value && styles.goalTextActive]}>
+                {opt.label}
               </Text>
             </TouchableOpacity>
           ))}

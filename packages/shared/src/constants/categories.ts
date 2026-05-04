@@ -1,4 +1,4 @@
-import type { BuildingCategory, BuildingEra } from "../types/index.js";
+import type { BuildingCategory, BuildingEra } from "../types/index";
 
 export const CATEGORY_LABELS: Record<BuildingCategory, string> = {
   new_build: "New Build",

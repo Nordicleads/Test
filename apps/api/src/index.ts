@@ -11,6 +11,7 @@ import { collectionRoutes } from "./routes/collections.js";
 import { pitStopRoutes } from "./routes/pitstops.js";
 import { archiveRoutes } from "./routes/archive.js";
 import { itineraryRoutes } from "./routes/itineraries.js";
+import { seedRoutes } from "./routes/seed.js";
 
 const app = Fastify({ logger: true });
 
@@ -28,6 +29,7 @@ await app.register(collectionRoutes, { prefix: "/api/v1" });
 await app.register(pitStopRoutes, { prefix: "/api/v1" });
 await app.register(archiveRoutes, { prefix: "/api/v1" });
 await app.register(itineraryRoutes, { prefix: "/api/v1" });
+await app.register(seedRoutes, { prefix: "/api/v1" });
 
 const port = parseInt(process.env.PORT ?? "3000", 10);
 await app.listen({ port, host: "0.0.0.0" });

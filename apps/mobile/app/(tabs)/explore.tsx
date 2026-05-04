@@ -13,6 +13,8 @@ import { RouteCard } from "../../src/components/RouteCard";
 import { FilterBar } from "../../src/components/FilterBar";
 import { CollectionCard } from "../../src/components/CollectionCard";
 import { BuildingCard } from "../../src/components/BuildingCard";
+import { CitySearch } from "../../src/components/CitySearch";
+import type { CityHit } from "../../src/components/CitySearch";
 import type { BuildingCategory } from "@wandr/shared";
 
 type ExploreMode = "routes" | "nearby";
@@ -21,14 +23,17 @@ export default function ExploreScreen() {
   const router = useRouter();
 
   const [mode, setMode] = useState<ExploreMode>("routes");
-  const [search, setSearch] = useState("");
+  const [cityFilter, setCityFilter] = useState("");
+  const [pinCoords, setPinCoords] = useState<{ lat: number; lng: number } | null>(null);
+  const [cityHits, setCityHits] = useState<CityHit[]>([]);
   const [selectedCategories, setSelectedCategories] = useState<BuildingCategory[]>([]);
   const [stepGoal, setStepGoal] = useState(10_000);
+  const [maxStops, setMaxStops] = useState(0); // 0 = auto
   const [stepFreeOnly, setStepFreeOnly] = useState(false);
 
   const { data: routesData, isLoading: routesLoading } = useRoutes({
     status: "published",
-    ...(search ? { city: search } : {}),
+    ...(cityFilter ? { city: cityFilter } : {}),
   });
   const { data: collections } = useCollections();
   const { data: nearbyBuildings, isLoading: nearbyLoading } = useNearbyBuildings(mode === "nearby");
@@ -42,19 +47,31 @@ export default function ExploreScreen() {
   }, []);
 
   const handleGenerate = useCallback(async () => {
-    const { status } = await Location.requestForegroundPermissionsAsync();
-    if (status !== "granted") {
-      Alert.alert("Location needed", "Enable location to generate a route near you.");
-      return;
+    let lat: number, lng: number;
+
+    if (pinCoords) {
+      // Use the city selected from autocomplete
+      lat = pinCoords.lat;
+      lng = pinCoords.lng;
+    } else {
+      // Fall back to device GPS
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== "granted") {
+        Alert.alert("Location needed", "Search for a city above or enable location access.");
+        return;
+      }
+      const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+      lat = loc.coords.latitude;
+      lng = loc.coords.longitude;
     }
-    const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+
     generate(
       {
-        lat: loc.coords.latitude,
-        lng: loc.coords.longitude,
+        lat,
+        lng,
         categories: selectedCategories.length > 0 ? selectedCategories : undefined,
         stepGoal,
-        radiusMeters: 2_000,
+        maxStops: maxStops > 0 ? maxStops : undefined,
         stepFreeOnly: stepFreeOnly || undefined,
       },
       {
@@ -66,7 +83,7 @@ export default function ExploreScreen() {
         },
       }
     );
-  }, [selectedCategories, stepGoal, generate, router]);
+  }, [pinCoords, selectedCategories, stepGoal, maxStops, generate, router]);
 
   return (
     <View style={styles.container}>
@@ -78,13 +95,14 @@ export default function ExploreScreen() {
 
       {/* Search */}
       <View style={styles.searchRow}>
-        <TextInput
-          style={styles.searchInput}
-          placeholder="Search by city…"
-          placeholderTextColor="#555"
-          value={search}
-          onChangeText={setSearch}
-          returnKeyType="search"
+        <CitySearch
+          style={styles.citySearch}
+          onHitsChange={setCityHits}
+          onClear={() => {
+            setCityFilter("");
+            setPinCoords(null);
+            setCityHits([]);
+          }}
         />
         {/* Mode toggle */}
         <View style={styles.modeToggle}>
@@ -102,6 +120,27 @@ export default function ExploreScreen() {
           </TouchableOpacity>
         </View>
       </View>
+
+      {/* City autocomplete suggestions — rendered in flow to avoid overflow clipping */}
+      {cityHits.length > 0 && (
+        <View style={styles.suggestions}>
+          {cityHits.map((h, i) => (
+            <TouchableOpacity
+              key={h.place_id}
+              style={[styles.suggestionItem, i < cityHits.length - 1 && styles.suggestionBorder]}
+              onPress={() => {
+                setCityFilter(h.name);
+                setPinCoords({ lat: h.lat, lng: h.lng });
+                setCityHits([]);
+              }}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.suggestionCity}>{h.name}</Text>
+              <Text style={styles.suggestionCountry}>{h.country}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      )}
 
       <ScrollView showsVerticalScrollIndicator={false} style={styles.scroll}>
         {/* Collections row */}
@@ -141,6 +180,8 @@ export default function ExploreScreen() {
               onToggleCategory={toggleCategory}
               stepGoal={stepGoal}
               onStepGoal={setStepGoal}
+              maxStops={maxStops}
+              onMaxStops={setMaxStops}
               stepFreeOnly={stepFreeOnly}
               onToggleStepFree={() => setStepFreeOnly((v) => !v)}
               onGenerate={handleGenerate}
@@ -172,16 +213,33 @@ const styles = StyleSheet.create({
   wordmark: { fontSize: 28, fontWeight: "700", color: "#d4a853", letterSpacing: 6 },
   subtitle: { fontSize: 13, color: "#888", marginTop: 4, letterSpacing: 1 },
 
-  searchRow: { flexDirection: "row", alignItems: "center", paddingHorizontal: 16, gap: 10, marginBottom: 4 },
-  searchInput: {
-    flex: 1,
-    backgroundColor: "#161616",
-    borderRadius: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    color: "#f0ece4",
-    fontSize: 14,
+  searchRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 16,
+    gap: 10,
+    marginBottom: 4,
   },
+  citySearch: { flex: 1 },
+
+  suggestions: {
+    marginHorizontal: 16,
+    marginBottom: 4,
+    backgroundColor: "#1c1c1c",
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "#2a2a2a",
+  },
+  suggestionItem: {
+    paddingHorizontal: 16,
+    paddingVertical: 13,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  suggestionBorder: { borderBottomWidth: 1, borderBottomColor: "#2a2a2a" },
+  suggestionCity: { fontSize: 14, color: "#f0ece4", fontWeight: "600" },
+  suggestionCountry: { fontSize: 12, color: "#888" },
   modeToggle: { flexDirection: "row", backgroundColor: "#161616", borderRadius: 10, padding: 3 },
   modeBtn: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: 8 },
   modeBtnActive: { backgroundColor: "#d4a853" },

@@ -1,2 +1,2 @@
-export * from "./types/index.js";
-export * from "./constants/categories.js";
+export * from "./types/index";
+export * from "./constants/categories";

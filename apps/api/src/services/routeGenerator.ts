@@ -2,7 +2,7 @@ import { query } from "../db/client.js";
 import type { BuildingCategory, BuildingEra } from "@wandr/shared";
 
 const STEP_LENGTH_METERS = 0.762;
-const WALKING_SPEED_M_PER_MIN = 83.3; // 5 km/h
+const WALKING_SPEED_M_PER_MIN = 83.3;
 const DWELL_TIME_MINUTES = 10;
 const NARRATIVE_PLACEHOLDER = "Audio guide content will be loaded from the archive.";
 
@@ -37,7 +37,6 @@ interface CandidateBuilding {
   distance_from_origin: number;
 }
 
-// Haversine distance in meters between two lat/lng points
 function haversine(lat1: number, lng1: number, lat2: number, lng2: number): number {
   const R = 6_371_000;
   const dLat = ((lat2 - lat1) * Math.PI) / 180;
@@ -50,44 +49,51 @@ function haversine(lat1: number, lng1: number, lat2: number, lng2: number): numb
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
-// Greedy nearest-neighbour ordering — good enough for ≤50 stops, O(n²)
-function nearestNeighbour(
+// Spread-to-target: each step picks the building whose distance from the current
+// position is closest to (remainingTargetMeters / remainingSlots). This distributes
+// walking distance evenly toward the step goal instead of always picking the nearest.
+function spreadToTarget(
   origin: { lat: number; lng: number },
   candidates: CandidateBuilding[],
-  stepGoal: number,
+  targetMeters: number,
   maxStops: number
 ): CandidateBuilding[] {
-  const maxDistanceMeters = stepGoal * STEP_LENGTH_METERS;
-  const ordered: CandidateBuilding[] = [];
+  if (candidates.length === 0) return [];
+  const cap = Math.min(maxStops, candidates.length);
+
+  const selected: CandidateBuilding[] = [];
   const remaining = [...candidates];
   let currentLat = origin.lat;
   let currentLng = origin.lng;
-  let accumulatedMeters = 0;
+  let remainingMeters = targetMeters;
 
-  while (remaining.length > 0 && ordered.length < maxStops) {
-    let nearestIdx = 0;
-    let nearestDist = Infinity;
+  while (remaining.length > 0 && selected.length < cap) {
+    const slotsLeft = cap - selected.length;
+    // Ideal walking distance for this leg
+    const legTarget = remainingMeters / slotsLeft;
+
+    let bestIdx = 0;
+    let bestScore = Infinity;
 
     for (let i = 0; i < remaining.length; i++) {
-      const d = haversine(currentLat, currentLng, remaining[i].lat, remaining[i].lng);
-      if (d < nearestDist) {
-        nearestDist = d;
-        nearestIdx = i;
+      // Straight-line × 1.35 approximates actual street walking distance
+      const walkDist = haversine(currentLat, currentLng, remaining[i].lat, remaining[i].lng) * 1.35;
+      const score = Math.abs(walkDist - legTarget);
+      if (score < bestScore) {
+        bestScore = score;
+        bestIdx = i;
       }
     }
 
-    // Walking factor: straight-line * 1.35 approximates actual street distance
-    const walkingDist = nearestDist * 1.35;
-    if (accumulatedMeters + walkingDist > maxDistanceMeters && ordered.length >= 3) break;
-
-    accumulatedMeters += walkingDist;
-    const next = remaining.splice(nearestIdx, 1)[0];
-    ordered.push(next);
+    const next = remaining.splice(bestIdx, 1)[0];
+    const walkDist = haversine(currentLat, currentLng, next.lat, next.lng) * 1.35;
+    remainingMeters = Math.max(0, remainingMeters - walkDist);
+    selected.push(next);
     currentLat = next.lat;
     currentLng = next.lng;
   }
 
-  return ordered;
+  return selected;
 }
 
 function metricsFromStops(
@@ -115,6 +121,14 @@ function difficultyFrom(steps: number): "easy" | "moderate" | "challenging" {
   return "challenging";
 }
 
+// Auto-compute maxStops from step goal if not supplied
+function defaultStops(stepGoal: number): number {
+  if (stepGoal <= 5_000) return 3;
+  if (stepGoal <= 10_000) return 5;
+  if (stepGoal <= 15_000) return 7;
+  return 10;
+}
+
 export async function generateRoute(input: GenerateRouteInput) {
   const {
     lat,
@@ -123,10 +137,18 @@ export async function generateRoute(input: GenerateRouteInput) {
     categories = [],
     eras = [],
     stepGoal = 10_000,
-    maxStops = 10,
+    maxStops,
     stepFreeOnly = false,
     maxGradientPercent,
   } = input;
+
+  const stops = maxStops ?? defaultStops(stepGoal);
+
+  // Expand search radius so we can find buildings far enough apart to hit the step goal.
+  // Target walking distance = stepGoal × step_length. We need a radius that covers
+  // at least ~65% of that distance in straight-line terms.
+  const targetMeters = stepGoal * STEP_LENGTH_METERS;
+  const effectiveRadius = Math.max(radiusMeters, targetMeters * 0.65);
 
   const categoryCondition =
     categories.length > 0 ? "AND b.categories && $5::building_category[]" : "";
@@ -137,7 +159,9 @@ export async function generateRoute(input: GenerateRouteInput) {
       ? `AND (b.max_gradient_percent IS NULL OR b.max_gradient_percent <= ${maxGradientPercent})`
       : "";
 
-  const params: unknown[] = [lat, lng, radiusMeters, maxStops * 4];
+  // Fetch enough candidates: at least stops×5 so the spread algorithm has real choice
+  const candidateLimit = Math.max(stops * 6, 30);
+  const params: unknown[] = [lat, lng, effectiveRadius, candidateLimit];
   if (categories.length) params.push(`{${categories.join(",")}}`);
   if (eras.length) params.push(`{${eras.join(",")}}`);
 
@@ -163,23 +187,23 @@ export async function generateRoute(input: GenerateRouteInput) {
 
   if (candidates.length === 0) return null;
 
-  const stops = nearestNeighbour({ lat, lng }, candidates, stepGoal, maxStops);
-  const metrics = metricsFromStops({ lat, lng }, stops);
+  const selected = spreadToTarget({ lat, lng }, candidates, targetMeters, stops);
+  const metrics = metricsFromStops({ lat, lng }, selected);
 
-  const allCategories = [
-    ...new Set(stops.flatMap((s) => s.categories)),
-  ] as BuildingCategory[];
-
-  const isStepFree = stops.every((s) => s.is_step_free);
-  const maxGrad = stops.reduce(
-    (max, s) => (s.max_gradient_percent !== null && s.max_gradient_percent > max ? s.max_gradient_percent : max),
+  const allCategories = [...new Set(selected.flatMap((s) => s.categories))] as BuildingCategory[];
+  const isStepFree = selected.every((s) => s.is_step_free);
+  const maxGrad = selected.reduce(
+    (max, s) =>
+      s.max_gradient_percent !== null && s.max_gradient_percent > max
+        ? s.max_gradient_percent
+        : max,
     0
   );
 
   return {
-    title: `${stops[0]?.city ?? "City"} Walk`,
-    description: `A curated ${metrics.estimatedDurationMinutes}-minute walk through ${stops.length} architectural highlights.`,
-    city: stops[0]?.city ?? "",
+    title: `${selected[0]?.city ?? "City"} Walk`,
+    description: `A curated ${metrics.estimatedDurationMinutes}-minute walk through ${selected.length} architectural highlights.`,
+    city: selected[0]?.city ?? "",
     country: "NO",
     categories: allCategories,
     distanceMeters: metrics.distanceMeters,
@@ -190,7 +214,7 @@ export async function generateRoute(input: GenerateRouteInput) {
     tags: stepFreeOnly ? ["step-free"] : [],
     isStepFree,
     maxGradientPercent: maxGrad > 0 ? maxGrad : null,
-    stops: stops.map((b, i) => ({
+    stops: selected.map((b, i) => ({
       order: i + 1,
       dwellTimeMinutes: DWELL_TIME_MINUTES,
       narrativeText: NARRATIVE_PLACEHOLDER,
