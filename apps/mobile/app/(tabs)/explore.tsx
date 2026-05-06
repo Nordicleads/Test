@@ -14,6 +14,7 @@ import { FilterBar } from "../../src/components/FilterBar";
 import { CollectionCard } from "../../src/components/CollectionCard";
 import { BuildingCard } from "../../src/components/BuildingCard";
 import { CitySearch } from "../../src/components/CitySearch";
+import { WandrLogo } from "../../src/components/WandrLogo";
 import type { CityHit } from "../../src/components/CitySearch";
 import type { BuildingCategory } from "@wandr/shared";
 
@@ -89,8 +90,7 @@ export default function ExploreScreen() {
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.wordmark}>WANDR</Text>
-        <Text style={styles.subtitle}>Cultural walks, curated.</Text>
+        <WandrLogo />
       </View>
 
       {/* Search */}
@@ -208,10 +208,8 @@ export default function ExploreScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#0f0f0f" },
-  header: { paddingTop: 72, paddingHorizontal: 24, paddingBottom: 16 },
-  wordmark: { fontSize: 28, fontWeight: "700", color: "#d4a853", letterSpacing: 6 },
-  subtitle: { fontSize: 13, color: "#888", marginTop: 4, letterSpacing: 1 },
+  container: { flex: 1, backgroundColor: "#0a0a0a" },
+  header: { paddingTop: 68, paddingHorizontal: 24, paddingBottom: 20 },
 
   searchRow: {
     flexDirection: "row",
@@ -225,32 +223,49 @@ const styles = StyleSheet.create({
   suggestions: {
     marginHorizontal: 16,
     marginBottom: 4,
-    backgroundColor: "#1c1c1c",
-    borderRadius: 10,
+    backgroundColor: "#141414",
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: "#2a2a2a",
+    borderColor: "#222",
+    overflow: "hidden",
   },
   suggestionItem: {
     paddingHorizontal: 16,
-    paddingVertical: 13,
+    paddingVertical: 14,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
   },
-  suggestionBorder: { borderBottomWidth: 1, borderBottomColor: "#2a2a2a" },
-  suggestionCity: { fontSize: 14, color: "#f0ece4", fontWeight: "600" },
-  suggestionCountry: { fontSize: 12, color: "#888" },
-  modeToggle: { flexDirection: "row", backgroundColor: "#161616", borderRadius: 10, padding: 3 },
-  modeBtn: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: 8 },
+  suggestionBorder: { borderBottomWidth: 1, borderBottomColor: "#1e1e1e" },
+  suggestionCity: { fontSize: 14, color: "#f2ece2", fontWeight: "600" },
+  suggestionCountry: { fontSize: 12, color: "#555" },
+
+  modeToggle: {
+    flexDirection: "row",
+    backgroundColor: "#111",
+    borderRadius: 12,
+    padding: 3,
+    borderWidth: 1,
+    borderColor: "#1e1e1e",
+  },
+  modeBtn: { paddingHorizontal: 13, paddingVertical: 8, borderRadius: 9 },
   modeBtnActive: { backgroundColor: "#d4a853" },
-  modeBtnText: { fontSize: 12, color: "#555", fontWeight: "600" },
-  modeBtnTextActive: { color: "#0f0f0f" },
+  modeBtnText: { fontSize: 12, color: "#444", fontWeight: "600", letterSpacing: 0.3 },
+  modeBtnTextActive: { color: "#0a0a0a" },
 
   scroll: { flex: 1 },
   section: { paddingTop: 20 },
-  sectionLabel: { fontSize: 10, color: "#555", letterSpacing: 2, fontWeight: "600", paddingHorizontal: 24, marginBottom: 12 },
+  sectionLabel: {
+    fontSize: 9,
+    color: "#3a3a3a",
+    letterSpacing: 3,
+    fontWeight: "700",
+    paddingHorizontal: 24,
+    marginBottom: 14,
+    textTransform: "uppercase",
+  },
   hScroll: { paddingLeft: 16, paddingRight: 8, paddingBottom: 4 },
 
   list: { paddingHorizontal: 16, paddingTop: 16, paddingBottom: 40 },
-  muted: { color: "#555", paddingHorizontal: 24, paddingTop: 20 },
+  muted: { color: "#444", paddingHorizontal: 24, paddingTop: 20, fontSize: 13, letterSpacing: 0.3 },
 });
