@@ -312,4 +312,43 @@ export async function seedRoutes(app: FastifyInstance) {
 
     return { inserted, skipped, total: OSLO_BUILDINGS.length };
   });
+
+  // Generic single-building insert — used by the byleksikon scraping script
+  app.post("/dev/add-building", async (req, reply) => {
+    const b = req.body as any;
+    if (!b?.name || !b?.lat || !b?.lng) return reply.badRequest("name, lat, lng required");
+
+    const exists = await query(
+      `SELECT id FROM buildings WHERE name = $1 AND city = $2 LIMIT 1`,
+      [b.name, b.city ?? "Oslo"]
+    );
+    if (exists.length > 0) return { status: "skipped", name: b.name };
+
+    const cats = Array.isArray(b.categories) ? b.categories : ["landmark"];
+    await query(
+      `INSERT INTO buildings (
+        name, short_description, description, architect, year_completed,
+        address, city, lat, lng, categories, era,
+        is_verified, sources
+      ) VALUES (
+        $1, $2, $3, $4, $5,
+        $6, $7, $8, $9, $10::building_category[], $11::building_era,
+        true, '{manual}'::data_source[]
+      )`,
+      [
+        b.name,
+        b.short_description ?? b.name,
+        b.description ?? b.short_description ?? b.name,
+        b.architect ?? null,
+        b.year_completed ?? null,
+        b.address ?? "",
+        b.city ?? "Oslo",
+        b.lat,
+        b.lng,
+        `{${cats.join(",")}}`,
+        b.era ?? null,
+      ]
+    );
+    return { status: "inserted", name: b.name };
+  });
 }
