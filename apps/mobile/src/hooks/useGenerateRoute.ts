@@ -8,6 +8,7 @@ interface GenerateInput {
   lng: number;
   categories?: BuildingCategory[];
   stepGoal?: number;
+  maxStops?: number;
   radiusMeters?: number;
   stepFreeOnly?: boolean;
   maxGradientPercent?: number;

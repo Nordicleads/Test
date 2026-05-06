@@ -5,6 +5,7 @@ const STEP_LENGTH_METERS = 0.762;
 const WALKING_SPEED_M_PER_MIN = 83.3;
 const DWELL_TIME_MINUTES = 10;
 const NARRATIVE_PLACEHOLDER = "Audio guide content will be loaded from the archive.";
+const OSRM_BASE = "https://router.project-osrm.org/route/v1/walking";
 
 export interface GenerateRouteInput {
   lat: number;
@@ -47,6 +48,43 @@ function haversine(lat1: number, lng1: number, lat2: number, lng2: number): numb
       Math.cos((lat2 * Math.PI) / 180) *
       Math.sin(dLng / 2) ** 2;
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+interface OsrmResult {
+  distanceMeters: number;
+  durationSeconds: number;
+  polyline: { lat: number; lng: number }[];
+}
+
+// Fetch a real walking route from OSRM. Falls back gracefully on timeout or error.
+async function fetchWalkingRoute(
+  waypoints: { lat: number; lng: number }[]
+): Promise<OsrmResult | null> {
+  if (waypoints.length < 2) return null;
+  // OSRM coords are lng,lat order
+  const coords = waypoints.map((p) => `${p.lng},${p.lat}`).join(";");
+  const url = `${OSRM_BASE}/${coords}?overview=full&geometries=geojson`;
+  try {
+    const resp = await fetch(url, {
+      signal: AbortSignal.timeout(6_000),
+      headers: { "User-Agent": "WANDR-App/1.0" },
+    });
+    if (!resp.ok) return null;
+    const data = (await resp.json()) as any;
+    if (data.code !== "Ok" || !data.routes?.[0]) return null;
+    const route = data.routes[0];
+    // GeoJSON coordinates are [lng, lat] — flip to {lat, lng}
+    const polyline = (route.geometry.coordinates as [number, number][]).map(
+      ([lng, lat]) => ({ lat, lng })
+    );
+    return {
+      distanceMeters: Math.round(route.distance),
+      durationSeconds: Math.round(route.duration),
+      polyline,
+    };
+  } catch {
+    return null;
+  }
 }
 
 // Spread-to-target: each step picks the building whose distance from the current
@@ -188,7 +226,28 @@ export async function generateRoute(input: GenerateRouteInput) {
   if (candidates.length === 0) return null;
 
   const selected = spreadToTarget({ lat, lng }, candidates, targetMeters, stops);
-  const metrics = metricsFromStops({ lat, lng }, selected);
+
+  // Fetch the real walking path from OSRM. Falls back to haversine on failure.
+  const waypoints = [{ lat, lng }, ...selected.map((b) => ({ lat: b.lat, lng: b.lng }))];
+  const osrm = await fetchWalkingRoute(waypoints);
+
+  let distanceMeters: number;
+  let estimatedSteps: number;
+  let estimatedDurationMinutes: number;
+  let walkingPolyline: { lat: number; lng: number }[] | undefined;
+
+  if (osrm) {
+    distanceMeters = osrm.distanceMeters;
+    estimatedSteps = Math.round(osrm.distanceMeters / STEP_LENGTH_METERS);
+    const walkingMinutes = osrm.durationSeconds / 60;
+    estimatedDurationMinutes = Math.round(walkingMinutes + selected.length * DWELL_TIME_MINUTES);
+    walkingPolyline = osrm.polyline;
+  } else {
+    const metrics = metricsFromStops({ lat, lng }, selected);
+    distanceMeters = metrics.distanceMeters;
+    estimatedSteps = metrics.estimatedSteps;
+    estimatedDurationMinutes = metrics.estimatedDurationMinutes;
+  }
 
   const allCategories = [...new Set(selected.flatMap((s) => s.categories))] as BuildingCategory[];
   const isStepFree = selected.every((s) => s.is_step_free);
@@ -202,18 +261,19 @@ export async function generateRoute(input: GenerateRouteInput) {
 
   return {
     title: `${selected[0]?.city ?? "City"} Walk`,
-    description: `A curated ${metrics.estimatedDurationMinutes}-minute walk through ${selected.length} architectural highlights.`,
+    description: `A curated ${estimatedDurationMinutes}-minute walk through ${selected.length} architectural highlights.`,
     city: selected[0]?.city ?? "",
     country: "NO",
     categories: allCategories,
-    distanceMeters: metrics.distanceMeters,
-    estimatedSteps: metrics.estimatedSteps,
-    estimatedDurationMinutes: metrics.estimatedDurationMinutes,
-    difficultyLevel: difficultyFrom(metrics.estimatedSteps),
+    distanceMeters,
+    estimatedSteps,
+    estimatedDurationMinutes,
+    difficultyLevel: difficultyFrom(estimatedSteps),
     status: "draft" as const,
     tags: stepFreeOnly ? ["step-free"] : [],
     isStepFree,
     maxGradientPercent: maxGrad > 0 ? maxGrad : null,
+    walkingPolyline,
     stops: selected.map((b, i) => ({
       order: i + 1,
       dwellTimeMinutes: DWELL_TIME_MINUTES,

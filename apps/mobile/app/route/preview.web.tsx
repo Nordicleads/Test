@@ -2,7 +2,7 @@ import React from "react";
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 
-function buildLeafletHtml(stops: any[]) {
+function buildLeafletHtml(stops: any[], walkingPolyline?: { lat: number; lng: number }[]) {
   if (!stops?.length) return "";
   const first = stops[0].building;
   const markers = stops
@@ -14,12 +14,19 @@ function buildLeafletHtml(stops: any[]) {
     )
     .join(";\n");
 
-  const coords = stops
-    .map((s: any) => `[${s.building.lat ?? s.building.coordinates?.lat}, ${s.building.lng ?? s.building.coordinates?.lng}]`)
+  // Use real walking polyline if available, otherwise straight lines between stops
+  const hasRealPath = Array.isArray(walkingPolyline) && walkingPolyline.length > 1;
+  const pathCoords = hasRealPath
+    ? walkingPolyline!.map((p) => `[${p.lat},${p.lng}]`).join(",")
+    : stops.map((s: any) => `[${s.building.lat ?? s.building.coordinates?.lat},${s.building.lng ?? s.building.coordinates?.lng}]`).join(",");
+
+  const boundsCoords = stops
+    .map((s: any) => `[${s.building.lat ?? s.building.coordinates?.lat},${s.building.lng ?? s.building.coordinates?.lng}]`)
     .join(",");
 
   const lat = first.lat ?? first.coordinates?.lat;
   const lng = first.lng ?? first.coordinates?.lng;
+  const dashArray = hasRealPath ? "" : "dashArray: '8,6', ";
 
   return `<!DOCTYPE html><html><head>
 <meta name="viewport" content="width=device-width,initial-scale=1">
@@ -30,9 +37,9 @@ function buildLeafletHtml(stops: any[]) {
 var map=L.map('map',{zoomControl:true}).setView([${lat},${lng}],14);
 L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',{attribution:'© OSM © CartoDB',maxZoom:19}).addTo(map);
 ${markers};
-L.polyline([${coords}],{color:'#d4a853',weight:3,opacity:0.9}).addTo(map);
-var bounds=L.polyline([${coords}]).getBounds();
-map.fitBounds(bounds,{padding:[24,24]});
+L.polyline([${pathCoords}],{color:'#d4a853',weight:3,opacity:0.9,${dashArray}}).addTo(map);
+var bounds=L.polyline([${boundsCoords}]).getBounds();
+map.fitBounds(bounds,{padding:[32,32]});
 </script></body></html>`;
 }
 
@@ -71,7 +78,7 @@ export default function RoutePreviewScreen() {
     <View style={styles.center}><Text style={styles.muted}>Could not load route preview.</Text></View>
   );
 
-  const mapHtml = buildLeafletHtml(route.stops ?? []);
+  const mapHtml = buildLeafletHtml(route.stops ?? [], route.walkingPolyline);
   const mapSrc = mapHtml ? `data:text/html;charset=utf-8,${encodeURIComponent(mapHtml)}` : "";
 
   const handleVoice = () => {

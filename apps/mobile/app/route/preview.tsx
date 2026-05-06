@@ -4,6 +4,23 @@ import MapView, { Marker, Polyline, PROVIDER_GOOGLE } from "react-native-maps";
 import { openFullRouteInMaps } from "../../src/services/maps";
 import { useVoiceGuide } from "../../src/hooks/useVoiceGuide";
 
+function fitRegion(coords: { latitude: number; longitude: number }[]) {
+  if (coords.length === 0) return { latitude: 59.91, longitude: 10.75, latitudeDelta: 0.05, longitudeDelta: 0.05 };
+  const lats = coords.map((c) => c.latitude);
+  const lngs = coords.map((c) => c.longitude);
+  const minLat = Math.min(...lats);
+  const maxLat = Math.max(...lats);
+  const minLng = Math.min(...lngs);
+  const maxLng = Math.max(...lngs);
+  const pad = 0.008;
+  return {
+    latitude: (minLat + maxLat) / 2,
+    longitude: (minLng + maxLng) / 2,
+    latitudeDelta: Math.max(maxLat - minLat + pad * 2, 0.01),
+    longitudeDelta: Math.max(maxLng - minLng + pad * 2, 0.01),
+  };
+}
+
 export default function RoutePreviewScreen() {
   const { data } = useLocalSearchParams<{ data: string }>();
   const router = useRouter();
@@ -22,10 +39,17 @@ export default function RoutePreviewScreen() {
 
   if (!route) return null;
 
-  const coordinates = (route.stops ?? []).map((s: any) => ({
+  // Stop marker positions
+  const stopCoordinates = (route.stops ?? []).map((s: any) => ({
     latitude: s.building.coordinates.lat,
     longitude: s.building.coordinates.lng,
   }));
+
+  // Real walking path from OSRM, or fall back to straight lines between stops
+  const polylineCoords: { latitude: number; longitude: number }[] =
+    Array.isArray(route.walkingPolyline) && route.walkingPolyline.length > 1
+      ? route.walkingPolyline.map((p: any) => ({ latitude: p.lat, longitude: p.lng }))
+      : stopCoordinates;
 
   const mapLocations = (route.stops ?? []).map((s: any) => ({
     lat: s.building.coordinates.lat,
@@ -33,7 +57,7 @@ export default function RoutePreviewScreen() {
     name: s.building.name,
   }));
 
-  const first = coordinates[0];
+  const first = stopCoordinates[0];
 
   return (
     <View style={styles.container}>
@@ -41,12 +65,7 @@ export default function RoutePreviewScreen() {
         <MapView
           style={styles.map}
           provider={PROVIDER_GOOGLE}
-          initialRegion={{
-            latitude: first.latitude,
-            longitude: first.longitude,
-            latitudeDelta: 0.018,
-            longitudeDelta: 0.018,
-          }}
+          initialRegion={fitRegion(stopCoordinates)}
         >
           {(route.stops ?? []).map((stop: any, i: number) => (
             <Marker
@@ -60,8 +79,13 @@ export default function RoutePreviewScreen() {
               onCalloutPress={() => router.push(`/building/${stop.building.id}`)}
             />
           ))}
-          {coordinates.length > 1 && (
-            <Polyline coordinates={coordinates} strokeColor="#d4a853" strokeWidth={3} />
+          {polylineCoords.length > 1 && (
+            <Polyline
+              coordinates={polylineCoords}
+              strokeColor="#d4a853"
+              strokeWidth={3}
+              lineDashPattern={route.walkingPolyline ? undefined : [8, 4]}
+            />
           )}
         </MapView>
       )}
